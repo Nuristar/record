@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B6A74">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>기록관리 표준노트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: phone-first app shell. Sticky top bar, one scrolling column (max 640px), fixed bottom tab bar.
+   Look: archive finding aid. Standard numbers in mono like call numbers, titles in a documentary serif,
+   and a red retention stamp used only for results and "check the latest text" warnings. */
+:root{
+  --bg:#ECEFF3; --surface:#FFFFFF; --surface-2:#E2E7ED; --ink:#14233A; --ink-2:#4B5B73; --line:#C9D2DD;
+  --accent:#0B6A74; --accent-ink:#FFFFFF; --accent-soft:#D6ECEE;
+  --stamp:#B03A2E; --stamp-soft:#F6E0DC;
+  --good:#1D7B4C; --good-soft:#D9EEE3; --warn:#8F5A00; --warn-soft:#F7EACB;
+  --f-display:"Noto Serif KR","Nanum Myeongjo","Batang",serif;
+  --f-body:"IBM Plex Sans KR","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1622; --surface:#162131; --surface-2:#1F2D42; --ink:#E5ECF5; --ink-2:#9FB1C8; --line:#2B3B52;
+    --accent:#4FC1C9; --accent-ink:#06222A; --accent-soft:#143A42;
+    --stamp:#FF8F80; --stamp-soft:#432320;
+    --good:#5ED192; --good-soft:#173A29; --warn:#F2BC52; --warn-soft:#3F3216;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1622; --surface:#162131; --surface-2:#1F2D42; --ink:#E5ECF5; --ink-2:#9FB1C8; --line:#2B3B52;
+  --accent:#4FC1C9; --accent-ink:#06222A; --accent-soft:#143A42;
+  --stamp:#FF8F80; --stamp-soft:#432320;
+  --good:#5ED192; --good-soft:#173A29; --warn:#F2BC52; --warn-soft:#3F3216;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{
+  color:var(--ink); font:15px/1.65 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0; -webkit-text-size-adjust:100%;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#app{max-width:640px;margin:0 auto;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0 10px;border-bottom:1px solid var(--line)}
+.brand{font:700 19px/1.2 var(--f-display);letter-spacing:-.01em;margin:0}
+.brand small{display:block;font:500 11px/1.4 var(--f-mono);color:var(--ink-2);letter-spacing:.04em;margin-top:2px}
+.dday{font:500 13px var(--f-mono);border:1px solid var(--accent);color:var(--accent);padding:3px 9px;border-radius:4px;white-space:nowrap;background:var(--surface);cursor:pointer}
+main{padding-top:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+h2{font:700 21px/1.35 var(--f-display);margin:0;text-wrap:balance}
+h3{font:600 15px/1.4 var(--f-body);margin:0}
+p{margin:0}
+.sub{color:var(--ink-2);font-size:14px}
+.mono{font-family:var(--f-mono)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.card.flat{background:transparent}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);padding:10px 14px;border-radius:8px;font-weight:500;min-height:44px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:14px}
+.seg{display:flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:transparent;padding:8px 6px;border-radius:6px;font-size:14px;font-weight:500;color:var(--ink-2);min-height:38px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tag{display:inline-block;font:500 11.5px/1.5 var(--f-mono);letter-spacing:.02em;color:var(--ink-2);background:var(--surface-2);padding:1px 7px;border-radius:3px}
+.tag.acc{background:var(--accent-soft);color:var(--accent)}
+.stamp{display:inline-block;font:500 12px/1.3 var(--f-mono);letter-spacing:.08em;color:var(--stamp);border:2px solid var(--stamp);padding:3px 8px;border-radius:3px;transform:rotate(-2deg)}
+.bar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.bar.good>i{background:var(--good)}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font:500 24px/1.1 var(--f-mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:12.5px;color:var(--ink-2)}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:flex;flex-direction:column;gap:4px;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.item .t{font:600 16px/1.4 var(--f-display)}
+.item .done{color:var(--good);font-size:12.5px;font-weight:600}
+.back{align-self:flex-start;border:0;background:transparent;color:var(--accent);padding:6px 0;font-weight:500;min-height:36px}
+.pts{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.pts li{position:relative;padding-left:18px}
+.pts li::before{content:"";position:absolute;left:2px;top:.62em;width:7px;height:7px;background:var(--accent);border-radius:1px}
+.tip{background:var(--accent-soft);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.tip b{color:var(--accent);font-size:13px}
+.notice{background:var(--warn-soft);color:var(--ink);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.notice b{color:var(--warn);font-size:13px}
+.terms{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px 12px;font-size:14px}
+.terms .en{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;font-weight:600;color:var(--ink-2)}
+select,input[type=date],input[type=search],textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px}
+textarea{resize:vertical;min-height:150px;line-height:1.6}
+.choice{display:flex;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);background:var(--surface);border-radius:8px;min-height:48px;align-items:flex-start}
+.choice .k{font:500 13px/1.7 var(--f-mono);color:var(--ink-2);min-width:16px}
+.choice.sel{border-color:var(--accent);background:var(--accent-soft)}
+.choice.right{border-color:var(--good);background:var(--good-soft)}
+.choice.wrong{border-color:var(--stamp);background:var(--stamp-soft)}
+.q{font:600 17px/1.55 var(--f-display);text-wrap:pretty}
+.out{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75}
+.bubble{padding:10px 14px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:92%}
+.bubble.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.bubble.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.5px;min-height:36px}
+.flash{min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;cursor:pointer}
+.flash .big{font:700 24px/1.3 var(--f-display)}
+.flash .en{font:500 20px/1.4 var(--f-mono);overflow-wrap:anywhere}
+.msg{font-size:13.5px;color:var(--ink-2)}
+.msg.err{color:var(--stamp)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding:0 max(8px,env(safe-area-inset-left,0px)) env(safe-area-inset-bottom,0px) max(8px,env(safe-area-inset-right,0px))}
+.tabs div{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 7px;font-size:11.5px;font-weight:500;color:var(--ink-2);min-height:56px}
+.tabs button[aria-current="true"]{color:var(--accent)}
+.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.hist{display:flex;flex-direction:column;gap:6px}
+.hist button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:40px}
+@media (prefers-reduced-motion:no-preference){.btn,.choice,.item{transition:background .15s,border-color .15s}}
+html{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+input[type=search]{-webkit-appearance:none;appearance:none}
+.pair{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:5px}
+.pair:first-child{border-top:0;padding-top:0}
+.en-src{font:400 13px/1.55 var(--f-mono);color:var(--ink-2);overflow-wrap:anywhere}
+.ko{font-weight:500;overflow-wrap:anywhere}
+</style>
+</head><body>
+
+<div id="app">
+  <header class="top">
+    <h1 class="brand">기록관리 표준노트<small>RECORDS STANDARDS · KR / ISO</small></h1>
+    <button class="dday" id="dday" type="button"></button>
+  </header>
+  <main id="view"></main>
+</div>
+<nav class="tabs" aria-label="주 메뉴"><div id="tabs"></div></nav>
+
+<script>
+(function(){
+'use strict';
+
+/* ───────── 학습 콘텐츠 (직접 정리한 요약. 표준 원문은 포함하지 않음) ───────── */
+const AREAS={kr:'국내',intl:'해외',theory:'이론'};
+const TOPICS=[
+{id:'kr1',area:'kr',code:'공공기록물법 제1~4조',title:'총칙과 정의',sub:'목적·기록물·기록물관리의 개념',
+ points:['목적: 공공기관의 투명하고 책임 있는 행정 구현과 공공기록물의 안전한 보존 및 효율적 활용.',
+  '기록물: 공공기관이 업무와 관련하여 생산하거나 접수한 문서·도서·대장·카드·도면·시청각물·전자문서 등 모든 형태의 기록정보 자료와 행정박물.',
+  '기록물관리: 생산·분류·정리·이관·수집·평가·폐기·보존·공개·활용 및 이에 부수되는 모든 업무.',
+  '공공기관: 국가기관, 지방자치단체, 그 밖에 대통령령으로 정하는 기관.',
+  '모든 공무원과 공공기관의 임직원은 법이 정한 바에 따라 기록물을 관리할 의무를 진다.'],
+ terms:[['기록물','records'],['기록물관리','records management'],['공공기관','public institution']],
+ exam:'기록물관리의 10개 단계(생산부터 활용까지)를 순서대로 말할 수 있어야 합니다. 법명은 현행 「공공기록물 관리에 관한 법률」이며, 제명 변경안은 개정 동향 주제에서 다룹니다.'},
+{id:'kr2',area:'kr',code:'공공기록물법 제3조·제13조',title:'기록물관리기관과 기록관',sub:'기관 유형과 기록관의 업무',
+ points:['기록물관리기관은 영구기록물관리기관, 기록관, 특수기록관 3종.',
+  '영구기록물관리기관은 중앙기록물관리기관, 헌법기관기록물관리기관, 지방기록물관리기관, 대통령기록관 4종.',
+  '기록관: 대통령령으로 정하는 공공기관이 설치·운영한다. 특수기록관을 둔 기관 안에는 기록관을 설치할 수 없다.',
+  '기록관 업무: 관할 기관 기본계획 수립·시행, 해당 기관 기록물관리, 기록관 미설치 관할 기관의 기록물관리, 정보공개 청구 접수, 지도·감독 및 지원, 교육·훈련, 다른 기관과의 연계·협조.',
+  '국가 차원의 기본정책 수립과 제도 개선은 중앙기록물관리기관의 몫이다.'],
+ terms:[['기록관','records center'],['영구기록물관리기관','permanent repository (설명용 표현)']],
+ exam:'"3종 vs 4종"을 혼동하기 쉽습니다. 처리과는 기록물관리기관이 아니라 기록을 생산·접수하는 부서입니다.'},
+{id:'kr3',area:'kr',code:'공공기록물법 제19조 · 시행령',title:'분류·보존기간·이관',sub:'기록관리기준표와 보존기간 체계',
+ points:['공공기관은 보존기간, 공개 여부, 비밀 여부, 접근권한 등을 분류하여 관리한다(법 제19조 제1항).',
+  '업무 기능에 기반한 기록관리기준표(단위과제 단위)를 작성·운영해 분류한다.',
+  '보존기간은 시행령 별표의 책정 기준에 따라 정한다. 현행 7종: 영구, 준영구, 30년, 10년, 5년, 3년, 1년.',
+  '처리과에서 기록관으로는 원칙적으로 매 1년 단위로 이관한다. 비전자기록물에는 예외 규정이 있다.',
+  '보존기간 30년 이상 기록물은 기산일부터 10년이 경과한 다음 연도 중 영구기록물관리기관으로 이관하는 것이 원칙이다.'],
+ terms:[['보존기간','retention period'],['이관','transfer'],['기록관리기준표','classification & retention schedule (설명용)']],
+ notice:'2025년 10월 시행령 개정안이 입법예고되어 보존기간을 5종으로 줄이는 안 등이 논의되었습니다. 시험 전에는 국가법령정보센터의 최신 시행령을 확인하세요.',
+ exam:'보존기간 종류와 "이관 주기·시기"는 숫자 암기 문제로 자주 나옵니다. 최신 조문 기준인지 먼저 확인합니다.'},
+{id:'kr4',area:'kr',code:'시행령 · NAK/S 5-1',title:'평가와 폐기',sub:'기록물평가심의회와 폐기 절차',
+ points:['보존기간이 만료된 기록물은 보존 가치를 평가해 폐기하거나 보류하는 등 처리한다.',
+  '기록물평가심의회의 심의가 필요한 사례: 기록관리기준표의 비치기간 연장, 원본을 폐기하고 보존매체만 보존하려는 경우, 폐기 금지 해제를 통보받은 기록물의 폐기 등.',
+  '국가기록원 표준 「기록물 평가·폐기 절차」(NAK/S 5-1, 기록관용)가 세부 절차를 정한다.',
+  '전자기록물의 폐기 방법은 표준 부속서에서 안내한다.'],
+ terms:[['평가','appraisal'],['폐기','destruction'],['처분','disposition']],
+ exam:'"누가 심의하는가(평가심의회)"와 "어떤 경우에 심의가 필요한가"를 짝으로 외웁니다.'},
+{id:'kr5',area:'kr',code:'공공기록물법 제41조 · 시행령 제78조',title:'기록물관리 전문요원',sub:'자격 요건과 시험',
+ points:['기록물의 체계적·전문적 관리를 위해 기록물관리기관에 전문요원을 배치한다(법 제41조).',
+  '자격 ①: 기록관리학 석사학위 이상.',
+  '자격 ②: 기록관리학 학사, 또는 역사학·문헌정보학 학사 이상으로서 행정안전부령이 정한 기록관리학 교육과정을 이수하고 전문요원 시험에 합격.',
+  '자격증은 행정안전부장관이 발급한다. 시험 부정행위자는 시험 정지·무효, 합격 취소와 함께 2년간 응시자격이 정지될 수 있다.',
+  '2017년 시험 기준 과목: 필수 기록관리학개론·전자기록관리론, 선택 기록평가선별론·기록조직론·기록보존정보서비스론 중 2과목. 합격 기준은 과목별 40% 이상, 총점 60% 이상이었다.'],
+ terms:[],
+ notice:'시험 과목, 일정, 합격 기준은 해마다 국가기록원 공고로 확인하세요. 위 과목과 기준은 2017년 시험 기준입니다.',
+ exam:'자격 경로 두 가지(석사 vs 학사+교육과정+시험)를 구분하는 문제가 기본입니다.'},
+{id:'kr6',area:'kr',code:'NAK · KS X ISO',title:'국가기록원 기록관리 표준',sub:'표준 체계와 번호 읽는 법',
+ points:['국가기록원은 2005년 기록관리 표준화 추진계획을 세워 55개 표준·지침을 공표했다.',
+  '표기: NAK/S는 공공표준, NAK/TS는 기술규격(예: 전자기록물 장기보존포맷 NAK/TS 3). 최근에는 「NAK 번호:연도(v버전)」 형식을 쓴다.',
+  '자료실의 표준 예시: 기록관리 메타데이터 표준(NAK 8), 한시 및 폐지기관 기록관리(NAK 15), 공공기록물 서비스 표준(NAK 21), 기록물 평가·폐기 절차.',
+  'KS X ISO 15489-1은 ISO 15489-1의 한국산업표준(국가표준) 채택본이다.',
+  '표준 작성 서식과 방법은 NAK/S 1이 정한다.'],
+ terms:[['국가기록원','National Archives of Korea'],['공공표준','public standard']],
+ notice:'표준 번호와 최신판은 국가기록원 누리집의 기록관리 자료실 > 표준·지침·매뉴얼에서 확인하세요.',
+ exam:'국내 표준은 ISO와 대응시켜 외우면 효율적입니다. 메타데이터 표준은 ISO 23081, 기록 관리 원칙은 ISO 15489와 연결합니다.'},
+{id:'kr7',area:'kr',code:'개정 동향',title:'최근 법·제도 개정 동향',sub:'입법예고와 국회 논의',
+ points:['2024년 8월 입법예고된 개정안은 법률명을 「국가기록물법」으로 바꾸고, 대상을 공공·민간·국외·데이터형 기록물, 전자기록물, 박물류로 구분하는 안을 담았다.',
+  '개정안에는 기록관리 종합 발전계획의 법적 근거를 두는 내용도 포함되었다.',
+  '2025년 10월 시행령 개정안이 입법예고되어 보존기간 축소(3·5·10·20년, 영구)와 이관 체계 변경이 논의되었다.',
+  '2026년 가을 기준 개정법률안이 국회 상임위(행정안전위원회)를 통과했다는 소식과 기록관리 단체들의 우려 표명이 있었다.'],
+ terms:[],
+ notice:'위 내용은 입법 논의 단계 정보를 정리한 것입니다. 공포·시행 여부와 조문은 국가법령정보센터에서 반드시 확인하세요.',
+ exam:'시험은 보통 "현재 시행 중인 법령" 기준입니다. 개정안 내용을 현행 규정으로 착각하지 않는 것이 핵심입니다.'},
+
+{id:'i1',area:'intl',code:'ISO 15489-1:2016',title:'기록관리 개념과 원칙',sub:'Records management — Concepts and principles',
+ points:['기록의 생산·획득(capture)·관리에 관한 개념과 원칙을 규정한다. 구조·형태·기술 환경과 관계없이 모든 업무 환경에 적용된다.',
+  '다루는 범위: 기록·메타데이터·기록시스템, 정책·책임·모니터링·교육, 업무 맥락 분석과 기록 요건 식별, 기록 통제, 기록 프로세스.',
+  '기록의 정의: 법적 의무 이행이나 업무 거래 과정에서 조직·개인이 증거이자 자산으로 생산·접수·유지하는 정보.',
+  '기록의 특성 4가지: 진본성, 신뢰성, 무결성, 이용가능성.',
+  '기록 통제 도구: 메타데이터 스키마, 업무분류표, 접근·허가 규칙, 처분 승인.',
+  '2001년판(Part 1 일반사항 + TR Part 2 지침)을 대체했다. 2001년판의 프로세스는 획득·등록·분류·저장·접근·추적·처분으로 설명되었다.'],
+ terms:[['기록','record'],['진본성','authenticity'],['신뢰성','reliability'],['무결성','integrity'],['이용가능성','usability'],['업무분류표','business classification scheme'],['처분 승인','disposition authority']],
+ exam:'ISO 15489는 실무 원칙 표준이고, 인증 가능한 요구사항은 ISO 30301입니다. 둘을 구분하세요. 원문을 읽을 때는 records requirements, business context, controls 단어에 주목합니다.'},
+{id:'i2',area:'intl',code:'ISO 23081 series',title:'기록 메타데이터',sub:'Metadata for managing records',
+ points:['시리즈 구성: 23081-1:2017 원칙, 23081-2:2021 개념과 이행 쟁점, ISO/TR 23081-3:2011 자기평가 방법.',
+  '23081-2의 영문 제목은 2021년판에서 "Managing metadata for records"에서 "Metadata for managing records"로 바뀌었다.',
+  '23081-2의 목적: 기록과 핵심 맥락 개체의 표준화된 기술, 집합 단위의 공통 이해로 시스템 간 상호운용성 확보, 시간·공간·응용을 넘나드는 메타데이터 재사용과 표준화.',
+  '메타데이터는 기록의 진본성·신뢰성 등 특성을 뒷받침하는 수단이다.',
+  '국내 대응: 국가기록원 「기록관리 메타데이터 표준」.'],
+ terms:[['메타데이터','metadata'],['맥락','context'],['상호운용성','interoperability'],['자기평가','self-assessment']],
+ exam:'각 파트의 번호·연도·성격(IS인지 TR인지)을 표로 정리해 두세요. TR은 기술보고서로 요구사항 표준이 아닙니다.'},
+{id:'i3',area:'intl',code:'ISO 30300 series',title:'기록 경영시스템',sub:'Management systems for records (MSR)',
+ points:['30300:2020 핵심 개념과 용어, 30301:2019 요구사항(Amd 1:2024 기후행동 변경), 30302:2022 이행 지침(Amd 1:2025).',
+  'ISO 9001 등과 같은 경영시스템 공통 구조를 따라 다른 경영시스템과 통합하기 쉽다.',
+  '조직 상황, 리더십, 기획, 지원, 운영, 성과평가, 개선의 흐름(조항 4~10)으로 구성된다.',
+  '요구사항 표준인 30301이 적합성 평가와 인증의 기준이 된다.',
+  '경영층 대상 표준이며, 실무 절차는 ISO 15489와 함께 본다.'],
+ terms:[['기록 경영시스템','management system for records'],['요구사항','requirements'],['이행 지침','guidelines for implementation']],
+ exam:'"어휘 / 요구사항 / 이행지침"을 30300 / 30301 / 30302에 정확히 대응시키는 문제가 단골입니다.'},
+{id:'i4',area:'intl',code:'ISO/TC 46/SC 11',title:'주요 표준 지도',sub:'기능요건·변환·평가·리스크 표준',
+ points:['ISO 16175-1:2020 / 16175-2:2020: 전자 환경 기록 시스템의 원칙과 기능요건.',
+  'ISO 13008:2022: 디지털 기록 변환·마이그레이션 프로세스. ISO/TR 13028:2010: 기록 디지털화 이행 지침.',
+  'ISO/TR 21946:2018: 기록 평가(appraisal). ISO/TS 7538:2024: 기록 처분의 기능요건.',
+  'ISO 18128:2024: 기록 리스크 평가(이전 판은 ISO/TR 18128:2014).',
+  'ISO/TR 21965:2019: 전사 아키텍처 내 기록관리. ISO/TR 26122:2008: 기록을 위한 업무 프로세스 분석.',
+  'ISO 22310:2006: 표준 작성자를 위한 기록관리 요건 서술 지침. ISO 17068:2017: 디지털 기록의 신뢰할 수 있는 제3자 저장소. ISO/TR 24332:2025: 블록체인·분산원장과 기록.'],
+ terms:[['기능요건','functional requirements'],['변환','conversion'],['마이그레이션','migration'],['리스크 평가','risk assessment']],
+ exam:'번호와 주제를 짝지어 카드로 외우는 영역입니다. 아래 퀴즈로 반복하세요.'},
+{id:'i5',area:'intl',code:'ISO 14721 (OAIS)',title:'OAIS 참조 모델',sub:'디지털 장기 보존 모델',
+ points:['장기 디지털 보존을 위한 개방형 기록정보 시스템 참조 모델이다.',
+  '정보 패키지 3종: SIP(제출), AIP(보존), DIP(배포).',
+  '기능 개체 6가지: 수집(Ingest), 보존 저장(Archival Storage), 데이터 관리(Data Management), 관리(Administration), 보존 계획(Preservation Planning), 접근(Access).',
+  '지정 커뮤니티(Designated Community)가 이해할 수 있도록 정보를 보존하는 것이 핵심 관점이다.',
+  '신뢰할 수 있는 디지털 저장소의 감사·인증 요구사항은 ISO 16363이 다룬다.'],
+ terms:[['제출 정보패키지','SIP'],['보존 정보패키지','AIP'],['배포 정보패키지','DIP'],['지정 커뮤니티','Designated Community']],
+ exam:'패키지 3종과 기능 6종을 그림으로 그려 보면 오래 기억됩니다.'},
+{id:'i6',area:'intl',code:'ICA ISAD(G) · RiC',title:'국제 기록 기술 표준',sub:'ISAD(G), ISAAR(CPF), ISDF, ISDIAH, RiC',
+ points:['ISAD(G): 기록물 기술의 일반 국제표준. 기술 요소는 7개 영역(식별, 맥락, 내용·구조, 접근·이용 조건, 관련 자료, 주기, 기술 통제)으로 나뉜다.',
+  '다계층 기술 원칙 4가지: 일반에서 특수로, 기술 수준에 맞는 정보, 기술 간 연결, 정보 비반복.',
+  'ISAAR(CPF): 기관·개인·가족 전거레코드. ISDF: 기능 기술. ISDIAH: 기록 보유 기관 기술.',
+  'RiC(Records in Contexts): ICA의 차세대 모델로 개념모델 RiC-CM과 온톨로지 RiC-O로 구성된다.'],
+ terms:[['다계층 기술','multilevel description'],['전거레코드','authority record'],['기술 요소','description element']],
+ exam:'ISAD(G) 7개 영역 이름과 4원칙은 서술형 단골입니다.'},
+
+{id:'t1',area:'theory',code:'기록관리학개론',title:'핵심 이론 개념',sub:'생애주기·컨티늄·출처·가치',
+ points:['생애주기 모델: 기록을 생산→활용→보존→폐기 또는 영구보존의 단계로 본다.',
+  '컨티늄 모델(프랭크 업워드): 생산(create), 획득(capture), 조직(organise), 다원화(pluralise) 4차원에서 기록을 연속적으로 관리한다고 본다.',
+  '출처 원칙: 기록을 생산자별로 구분해 관리. 원질서 존중: 기록이 생산·사용된 원래의 배열을 유지.',
+  '셸렌버그의 가치론: 1차 가치(행정·법적·재정적·운영적), 2차 가치(증거적·정보적).',
+  '기록의 4가지 특성(진본성·신뢰성·무결성·이용가능성)은 ISO 15489와 연결해 기억한다.'],
+ terms:[['생애주기','life cycle'],['컨티늄','continuum'],['출처 원칙','principle of provenance'],['원질서 존중','respect for original order']],
+ exam:'이론 이름과 대표 학자를 짝으로 외우고, 모델이 현재 제도(법령·ISO)에 어떻게 반영되는지 서술할 수 있어야 합니다.'}
+];
+
+const TERMS=[
+['기록','record','법적 의무 이행이나 업무 거래 과정에서 증거와 자산으로 생산·접수·유지되는 정보'],
+['기록물','records','공공기관이 업무와 관련해 생산·접수한 모든 형태의 기록정보 자료와 행정박물(국내 법령 용어)'],
+['기록관리','records management','기록의 생산부터 처분까지를 체계적으로 통제하는 활동'],
+['기록시스템','records system','기록을 획득·관리·제공하는 정보시스템'],
+['메타데이터','metadata','기록의 맥락·내용·구조와 관리 이력을 설명하는 데이터'],
+['진본성','authenticity','기록이 주장하는 그대로의 것임'],
+['신뢰성','reliability','기록 내용이 업무 활동을 완전하고 정확하게 나타낸다고 믿을 수 있는 성질'],
+['무결성','integrity','기록이 완전하고 변경되지 않은 상태'],
+['이용가능성','usability','필요할 때 찾고 열람·해석할 수 있는 성질'],
+['획득','capture','기록을 기록시스템에 편입하고 메타데이터를 붙이는 과정'],
+['분류','classification','업무 활동 등에 따라 기록을 체계적으로 구분하는 일'],
+['업무분류표','business classification scheme','업무 기능·활동에 기반한 분류 체계'],
+['보존기간','retention period','기록을 보존해야 하는 기간'],
+['처분','disposition','폐기, 이관, 영구보존 등 기록의 최종 처리'],
+['처분 승인','disposition authority','처분 결정의 근거가 되는 승인된 규칙'],
+['평가','appraisal','기록의 가치를 판단해 보존·폐기를 결정하는 과정'],
+['이관','transfer','기록의 보관 책임을 다른 부서·기관으로 넘기는 일'],
+['폐기','destruction','기록을 복원할 수 없게 없애는 일'],
+['접근 통제','access control','열람·이용 권한을 관리하는 일'],
+['마이그레이션','migration','내용을 바꾸지 않고 기록을 다른 시스템·형식으로 옮기는 일'],
+['변환','conversion','기록의 형식을 바꾸는 일'],
+['맥락','context','기록이 생산·사용된 업무·조직·법적 환경'],
+['출처 원칙','principle of provenance','기록을 생산자별로 구분해 관리하는 원칙'],
+['원질서 존중','respect for original order','생산·사용 당시의 배열을 유지하는 원칙'],
+['기술','description','기록의 식별·관리·이용을 위한 정보를 작성하는 일'],
+['전거레코드','authority record','생산자 이름의 표준 형태와 정보를 담은 기록(ISAAR(CPF))'],
+['기록 경영시스템','management system for records','ISO 30300 시리즈의 경영시스템 접근 방식'],
+['생애주기','life cycle','기록을 단계적으로 관리하는 모델'],
+['컨티늄','continuum','시간·공간 다차원에서 연속적으로 관리하는 모델'],
+['보존 정보패키지','AIP (Archival Information Package)','OAIS에서 장기 보존을 위해 저장되는 패키지']
+];
+
+const QS=[
+{id:'q01',topic:'i1',q:'ISO 15489-1:2016이 제시하는 기록의 특성에 해당하지 않는 것은?',c:['진본성','신뢰성','무결성','경제성'],a:3,e:'기록의 4가지 특성은 진본성, 신뢰성, 무결성, 이용가능성입니다.'},
+{id:'q02',topic:'i1',q:'ISO 15489-1:2016이 대체한 2001년판 ISO 15489는 Part 1(일반사항)과 어떤 문서로 구성되었나?',c:['ISO/TR 15489-2 (지침)','ISO 23081-1 (메타데이터 원칙)','ISO 30300 (어휘)','ISO 16175-2 (기능요건)'],a:0,e:'2001년판은 Part 1 일반사항과 기술보고서 Part 2 지침의 두 부분이었고, 2016년에 Part 1이 개정되었습니다.'},
+{id:'q03',topic:'i1',q:'ISO 15489-1:2016의 기록 통제 도구로 보기 어려운 것은?',c:['업무분류표','처분 승인','접근 및 허가 규칙','직원 인사평정표'],a:3,e:'기록 통제 도구는 메타데이터 스키마, 업무분류표, 접근·허가 규칙, 처분 승인입니다.'},
+{id:'q04',topic:'i1',type:'ox',q:'ISO 15489-1:2016은 기록의 구조나 형태, 기술 환경과 관계없이 적용된다.',c:['O','X'],a:0,e:'표준은 구조·형태와 관계없이, 모든 유형의 업무·기술 환경에서 시간에 걸쳐 적용된다고 규정합니다.'},
+{id:'q05',topic:'i1',q:'ISO 15489-1:2016의 기록 정의에서 기록은 조직·개인이 ( )이자 자산으로 유지하는 정보다. 빈칸은?',c:['증거','홍보물','예산','복제본'],a:0,e:'기록은 증거(evidence)이자 자산(asset)으로 유지되는 정보입니다.'},
+{id:'q06',topic:'i1',type:'ox',q:'ISO 15489-1:2016은 ISO 9001처럼 인증 대상이 되는 경영시스템 요구사항 표준이다.',c:['O','X'],a:1,e:'인증 가능한 요구사항 표준은 ISO 30301입니다. 15489-1은 개념과 원칙을 다룹니다.'},
+{id:'q07',topic:'i2',q:'ISO 23081-2는 2021년판에서 영문 제목이 어떻게 바뀌었나?',c:['Managing metadata for records → Metadata for managing records','Records metadata → Metadata schema','Metadata principles → Metadata services','바뀌지 않았다'],a:0,e:'2021년판은 제목의 두 번째 요소가 "Metadata for managing records"로 바뀌었습니다.'},
+{id:'q08',topic:'i2',q:'ISO/TR 23081-3:2011이 다루는 내용은?',c:['메타데이터 원칙','메타데이터 자기평가 방법','기록 리스크 평가','디지털 기록 변환'],a:1,e:'23081-3은 메타데이터 자기평가 방법을 다루는 기술보고서입니다.'},
+{id:'q09',topic:'i3',q:'ISO 30301:2019이 다루는 내용은?',c:['핵심 개념과 용어','기록 경영시스템 요구사항','이행 지침','메타데이터 자기평가'],a:1,e:'30300은 개념·용어, 30301은 요구사항, 30302는 이행 지침입니다.'},
+{id:'q10',topic:'i3',type:'ox',q:'ISO 30300 시리즈는 ISO 9001 등과 같은 경영시스템 공통 구조를 따른다.',c:['O','X'],a:0,e:'공통 구조를 따르므로 다른 경영시스템과 통합하기 쉽습니다.'},
+{id:'q11',topic:'i3',q:'ISO 30300:2020이 다루는 것은?',c:['핵심 개념과 용어','요구사항 규격','디지털 기록 변환 절차','OAIS 정보 패키지'],a:0,e:'ISO 30300:2020은 핵심 개념과 용어(어휘)입니다.'},
+{id:'q12',topic:'i4',q:'디지털 기록의 변환과 마이그레이션 프로세스를 다루는 표준은?',c:['ISO 13008:2022','ISO 18128:2024','ISO/TR 21946:2018','ISO 22310:2006'],a:0,e:'ISO 13008:2022가 디지털 기록 변환·마이그레이션 프로세스입니다.'},
+{id:'q13',topic:'i4',q:'ISO 18128:2024의 주제는?',c:['기록 리스크 평가','기록 평가(appraisal)','전자 기록 시스템 기능요건','블록체인과 기록'],a:0,e:'ISO 18128은 기록 리스크 평가입니다. 이전 판은 TR 18128:2014입니다.'},
+{id:'q14',topic:'i4',q:'ISO/TR 21946:2018의 주제는?',c:['기록 평가(appraisal)','기록 디지털화','업무 프로세스 분석','표준 작성 지침'],a:0,e:'ISO/TR 21946:2018은 기록의 평가에 관한 기술보고서입니다.'},
+{id:'q15',topic:'i4',q:'ISO 16175 시리즈가 다루는 것은?',c:['전자 환경 기록 시스템의 원칙과 기능요건','메타데이터 원칙','기록 경영시스템 요구사항','OAIS 참조 모델'],a:0,e:'ISO 16175는 전자 환경에서 기록을 관리하는 시스템의 원칙과 기능요건입니다.'},
+{id:'q16',topic:'i5',q:'OAIS에서 장기 보존을 위해 저장되는 정보 패키지는?',c:['SIP','AIP','DIP','TDR'],a:1,e:'SIP는 제출, AIP는 보존, DIP는 배포 패키지입니다.'},
+{id:'q17',topic:'i5',q:'OAIS의 기능 개체가 아닌 것은?',c:['수집(Ingest)','보존 계획(Preservation Planning)','접근(Access)','폐기 승인(Disposal Approval)'],a:3,e:'기능 개체는 수집, 보존 저장, 데이터 관리, 관리, 보존 계획, 접근 6가지입니다.'},
+{id:'q18',topic:'i6',q:'ISAD(G)의 기술 요소가 속하는 영역은 모두 몇 개인가?',c:['5개','6개','7개','9개'],a:2,e:'식별, 맥락, 내용·구조, 접근·이용 조건, 관련 자료, 주기, 기술 통제의 7개 영역입니다.'},
+{id:'q19',topic:'i6',type:'ox',q:'ISAD(G)의 다계층 기술 원칙에는 "일반에서 특수로"가 포함된다.',c:['O','X'],a:0,e:'4원칙은 일반에서 특수로, 수준에 맞는 정보, 기술 간 연결, 정보 비반복입니다.'},
+{id:'q20',topic:'i6',q:'기관·개인·가족의 전거레코드를 다루는 ICA 표준은?',c:['ISAD(G)','ISAAR(CPF)','ISDF','ISDIAH'],a:1,e:'ISAAR(CPF)가 전거레코드, ISDF가 기능, ISDIAH가 기록 보유 기관 기술입니다.'},
+{id:'q21',topic:'i6',q:'RiC(Records in Contexts) 중 온톨로지에 해당하는 것은?',c:['RiC-CM','RiC-O','ISDF','ISAD(G)'],a:1,e:'RiC-CM은 개념모델, RiC-O는 온톨로지입니다.'},
+{id:'q22',topic:'t1',q:'컨티늄 모델의 4차원에 해당하지 않는 것은?',c:['생산(Create)','획득(Capture)','조직(Organise)','폐기(Dispose)'],a:3,e:'4차원은 생산, 획득, 조직, 다원화(Pluralise)입니다.'},
+{id:'q23',topic:'t1',q:'셸렌버그가 구분한 기록의 2차 가치는?',c:['행정적 가치','법적 가치','증거적 가치','재정적 가치'],a:2,e:'1차 가치는 행정·법적·재정적·운영적, 2차 가치는 증거적·정보적 가치입니다.'},
+{id:'q24',topic:'t1',q:'기록이 생산·사용된 원래의 배열을 유지하라는 원칙은?',c:['출처 원칙','원질서 존중','주제별 분류','개별 평가'],a:1,e:'출처 원칙은 생산자별 구분, 원질서 존중은 원래 배열 유지입니다.'},
+{id:'q25',topic:'kr1',q:'공공기록물법상 "기록물관리"의 단계에 포함되지 않는 것은?',c:['분류','평가','공개','마케팅'],a:3,e:'생산·분류·정리·이관·수집·평가·폐기·보존·공개·활용이 해당합니다.'},
+{id:'q26',topic:'kr2',q:'기록물관리기관에 해당하지 않는 것은?',c:['영구기록물관리기관','기록관','특수기록관','처리과'],a:3,e:'기록물관리기관은 영구기록물관리기관, 기록관, 특수기록관입니다.'},
+{id:'q27',topic:'kr2',q:'영구기록물관리기관에 해당하지 않는 것은?',c:['중앙기록물관리기관','지방기록물관리기관','대통령기록관','특수기록관'],a:3,e:'영구기록물관리기관은 중앙, 헌법기관, 지방, 대통령기록관 4종입니다.'},
+{id:'q28',topic:'kr2',q:'기록관의 업무가 아닌 것은?',c:['관할 공공기관 기록물관리 기본계획 수립·시행','정보공개 청구 접수','관할 공공기관 기록물관리 교육·훈련','국가 전체 기록물관리 기본정책 수립과 제도 개선'],a:3,e:'국가 차원의 기본정책 수립과 제도 개선은 중앙기록물관리기관의 업무입니다.'},
+{id:'q29',topic:'kr3',q:'법 제19조 제1항에 따라 공공기관이 분류해 관리해야 하는 사항이 아닌 것은?',c:['보존기간','공개 여부','접근권한','작성자의 급여'],a:3,e:'보존기간, 공개 여부, 비밀 여부, 접근권한 등을 분류합니다.'},
+{id:'q30',topic:'kr3',q:'2025년 개정안 입법예고 이전 시행령의 보존기간 구분은 몇 종인가?',c:['5종','6종','7종','8종'],a:2,e:'영구, 준영구, 30년, 10년, 5년, 3년, 1년의 7종입니다. 개정안은 5종 축소를 제안했습니다.'},
+{id:'q31',topic:'kr3',q:'처리과에서 기록관으로 기록물을 이관하는 원칙적 주기는?',c:['매 1년 단위','매 5년 단위','보존기간 만료 시','생산 즉시'],a:0,e:'원칙은 매 1년 단위 이관이며 비전자기록물에는 예외 규정이 있습니다. 최신 시행령을 확인하세요.'},
+{id:'q32',topic:'kr3',q:'보존기간 30년 이상 기록물의 영구기록물관리기관 이관 시기 원칙은?',c:['기산일부터 10년이 경과한 다음 연도 중','기산일부터 1년 이내','기산일부터 30년 경과 즉시','폐기 직전'],a:0,e:'시행령은 기산일부터 10년이 경과한 다음 연도 중 이관하도록 합니다(세부 예외는 조문 확인).'},
+{id:'q33',topic:'kr4',q:'기록물평가심의회의 심의가 필요한 경우는?',c:['원본을 폐기하고 보존매체만 보존하려는 경우','복사용지를 구입하는 경우','휴가를 승인하는 경우','청사 청소 계획을 세우는 경우'],a:0,e:'기록물 원본 폐기 후 보존매체만 보존하는 경우가 대표적입니다.'},
+{id:'q34',topic:'kr5',q:'시험 없이 기록물관리 전문요원 자격을 얻을 수 있는 경우는?',c:['기록관리학 석사학위 이상','역사학 학사학위','문헌정보학 학사학위','관련 경력 10년'],a:0,e:'역사학·문헌정보학 학사 등은 교육과정 이수와 시험 합격이 필요합니다.'},
+{id:'q35',topic:'kr5',q:'2017년 전문요원 시험의 필수과목은?',c:['기록관리학개론·전자기록관리론','기록조직론·기록평가선별론','행정법·민법','영어·국어'],a:0,e:'필수 2과목에 선택 3과목 중 2과목을 더했습니다. 최신 공고를 확인하세요.'},
+{id:'q36',topic:'kr6',q:'국가기록원이 2005년 표준화 추진계획에 따라 공표한 표준·지침의 수는?',c:['15개','35개','55개','85개'],a:2,e:'2005년 기록관리 표준화 추진계획에 따라 55개 표준·지침이 공표되었습니다.'},
+{id:'q37',topic:'kr7',q:'2024년 입법예고된 개정안이 제안한 법률 제명은?',c:['국가기록물법','기록관리기본법','공공문서법','아카이브법'],a:0,e:'입법예고안은 제명을 「국가기록물법」으로 바꾸는 안이었습니다. 현행 법명과 구분하세요.'}
+];
+
+/* ───────── 상태 저장 ───────── */
+const KEY='rk-standards-v1';
+let S;
+function load(){let o=null;try{o=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+  S=Object.assign({examDate:'',streak:{last:'',n:0},read:{},cards:{},wrong:{},stats:{},bm:{},gen:[],hist:[],tr:[],newToday:{d:'',n:0},set:{email:''}},o||{})}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>ymd(new Date());
+function addDays(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)}
+function diffDays(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5)}
+function touch(){const t=today();if(S.streak.last===t)return;S.streak.n=(S.streak.last===addDays(t,-1))?S.streak.n+1:1;S.streak.last=t;save()}
+
+/* ───────── DOM 도우미 ───────── */
+function h(tag,attrs){const e=document.createElement(tag);
+  if(attrs)for(const k in attrs){const v=attrs[k];
+    if(k==='class')e.className=v;else if(k==='on'){for(const ev in v)e.addEventListener(ev,v[ev])}
+    else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}
+  for(let i=2;i<arguments.length;i++){const kids=[arguments[i]].flat(Infinity);
+    for(const c of kids){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(String(c)))}}
+  return e}
+const card=(...k)=>h('div',{class:'card'},...k);
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const allQ=()=>QS.concat(S.gen);
+const qById=id=>allQ().find(q=>q.id===id);
+const topicById=id=>TOPICS.find(t=>t.id===id);
+
+/* ───────── 내비게이션 ───────── */
+const ICONS={home:'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',study:'M4 4h12a3 3 0 013 3v13H7a3 3 0 01-3-3zM4 17a3 3 0 013-3h12M8 8h6',quiz:'M4 4h16v16H4zM8.5 12l2.5 2.5 4.5-5',tr:'M3 5h9M7.5 3v2M5 5c.6 3.5 3 6 6 7.5M10 5c-.6 3-3 6.5-7 8.5M12.5 21l4.5-11 4.5 11M14 17.5h6',review:'M5 7h14v11H5zM8 4h8M8 21h8'};
+const TABS=[['home','홈'],['study','학습'],['quiz','퀴즈'],['tr','번역'],['review','복습']];
+let nav={tab:'home',study:'kr',topic:null,qsub:'menu',trsub:'tr',rsub:'menu',gen:null};
+let timer=null;
+function go(tab,o){clearInterval(timer);timer=null;nav.tab=tab;Object.assign(nav,o||{});render();window.scrollTo(0,0)}
+function drawTabs(){const box=document.getElementById('tabs');box.replaceChildren();
+  TABS.forEach(([k,l])=>{const b=h('button',{type:'button','aria-current':nav.tab===k?'true':'false',on:{click:()=>go(k,k==='study'?{topic:null}:k==='quiz'?{qsub:'menu'}:k==='review'?{rsub:'menu'}:{})}});
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+ICONS[k]+'"/></svg>';b.append(l);box.append(b)})}
+function drawDday(){const b=document.getElementById('dday');
+  if(S.examDate){const n=diffDays(today(),S.examDate);b.textContent=n>0?'D-'+n:n===0?'D-Day':'D+'+(-n)}else b.textContent='시험일 설정';
+  b.onclick=()=>go('home')}
+function render(){drawTabs();drawDday();const v=document.getElementById('view');v.replaceChildren();
+  const f={home:viewHome,study:viewStudy,quiz:viewQuiz,tr:viewTr,review:viewReview}[nav.tab];v.append(f())}
+
+/* ───────── 공통 통계 ───────── */
+function totals(){let ok=0,no=0;for(const k in S.stats){ok+=S.stats[k].ok||0;no+=S.stats[k].no||0}return{ok,no,n:ok+no,acc:ok+no?Math.round(100*ok/(ok+no)):0}}
+function dueInfo(){const t=today();let due=0;for(let i=0;i<TERMS.length;i++){const c=S.cards[i];if(c&&c.due<=t)due++}
+  const fresh=TERMS.length-Object.keys(S.cards).length;const used=S.newToday.d===t?S.newToday.n:0;return{due,fresh:Math.max(0,Math.min(fresh,10-used))}}
+function areaProgress(a){const ts=TOPICS.filter(t=>t.area===a);const r=ts.filter(t=>S.read[t.id]).length;return{r,n:ts.length}}
+
+/* ───────── 홈 ───────── */
+function viewHome(){
+  const tot=totals(),di=dueInfo(),read=Object.keys(S.read).length;
+  const next=TOPICS.find(t=>!S.read[t.id]);
+  const dateIn=h('input',{type:'date',id:'exam-date',value:S.examDate||''});
+  return h('div',{class:'stack'},
+    card(h('div',{class:'grid2'},
+      h('div',{class:'stat'},h('b',null,S.streak.n||0),h('span',null,'연속 학습일')),
+      h('div',{class:'stat'},h('b',null,tot.n?tot.acc+'%':'-'),h('span',null,'누적 정답률 ('+tot.n+'문항)')))),
+    card(h('h3',null,'오늘 할 일'),h('div',{style:'height:10px'}),
+      h('div',{class:'list'},
+        h('button',{class:'btn block',type:'button',on:{click:()=>go('review',{rsub:'cards'})}},'용어 카드 복습 · 복습 '+di.due+'개, 새 카드 '+di.fresh+'개'),
+        next?h('button',{class:'btn primary block',type:'button',on:{click:()=>go('study',{study:next.area,topic:next.id})}},'이어서 학습: '+next.title):h('p',{class:'msg'},'모든 주제를 읽었어요. 퀴즈로 점검해 보세요.'),
+        h('button',{class:'btn block',type:'button',on:{click:()=>go('quiz',{qsub:'menu'})}},'퀴즈 풀기'))),
+    card(h('h3',null,'영역별 진도'),h('div',{style:'height:10px'}),
+      h('div',{class:'list'},Object.keys(AREAS).map(a=>{const p=areaProgress(a);
+        return h('div',{class:'stack',style:'gap:6px'},h('div',{class:'row between'},h('span',null,AREAS[a]+'표준'.replace('표준',a==='theory'?'':'표준')),h('span',{class:'mono msg'},p.r+' / '+p.n)),
+          h('div',{class:'bar'},h('i',{style:'width:'+Math.round(100*p.r/p.n)+'%'})))}))),
+    card(h('div',{class:'field'},h('label',{for:'exam-date'},'시험일'),
+      h('div',{class:'row'},h('div',{style:'flex:1;min-width:150px'},dateIn),
+        h('button',{class:'btn',type:'button',on:{click:()=>{S.examDate=dateIn.value||'';save();drawDday();render()}}},'저장')))),
+    (()=>{const m=h('p',{class:'msg'});const f=h('input',{type:'file',accept:'application/json,.json',id:'imp',hidden:true});
+      f.addEventListener('change',()=>{if(f.files[0])importData(f.files[0],m)});
+      return card(h('h3',null,'진도 백업'),h('p',{class:'sub',style:'margin:4px 0 10px'},'진도와 오답은 이 기기의 브라우저에만 저장돼요. 기기를 바꿀 때를 위해 파일로 백업해 두세요.'),
+        h('div',{class:'row'},h('button',{class:'btn',type:'button',on:{click:exportData}},'백업 파일 저장'),h('button',{class:'btn',type:'button',on:{click:()=>f.click()}},'백업 불러오기'),f),m)})(),
+    h('div',{class:'notice'},h('b',null,'법령은 바뀝니다'),h('p',null,'이 앱의 국내 법령 요약은 학습용 정리입니다. 시험 전에는 국가법령정보센터와 국가기록원 공고로 최신 내용을 확인하세요. 해외표준 원문은 이 앱에 들어 있지 않습니다.'))
+  )}
+
+/* ───────── 학습 ───────── */
+function viewStudy(){
+  if(nav.topic){const t=topicById(nav.topic);if(t)return viewTopic(t)}
+  const seg=h('div',{class:'seg',role:'group'},[['kr','국내'],['intl','해외'],['theory','이론'],['gloss','용어집']].map(([k,l])=>
+    h('button',{type:'button','aria-pressed':nav.study===k?'true':'false',on:{click:()=>{nav.study=k;render()}}},l)));
+  if(nav.study==='gloss')return h('div',{class:'stack'},seg,glossary());
+  const items=TOPICS.filter(t=>t.area===nav.study).map(t=>
+    h('button',{class:'item',type:'button',on:{click:()=>{nav.topic=t.id;render();window.scrollTo(0,0)}}},
+      h('div',{class:'row between'},h('span',{class:'tag mono'},t.code),S.read[t.id]?h('span',{class:'done'},'읽음'):null),
+      h('span',{class:'t'},t.title),h('span',{class:'sub'},t.sub)));
+  return h('div',{class:'stack'},seg,h('div',{class:'list'},items))}
+function viewTopic(t){
+  const nq=QS.filter(q=>q.topic===t.id).length;
+  return h('div',{class:'stack'},
+    h('button',{class:'back',type:'button',on:{click:()=>{nav.topic=null;render()}}},'← 목록'),
+    h('div',{class:'stack',style:'gap:6px'},h('span',{class:'tag mono',style:'align-self:flex-start'},t.code),h('h2',null,t.title),h('p',{class:'sub'},t.sub)),
+    t.notice?h('div',{class:'notice'},h('b',null,'최신 내용 확인 필요'),h('p',null,t.notice)):null,
+    card(h('ul',{class:'pts'},t.points.map(p=>h('li',null,p)))),
+    t.terms.length?card(h('h3',null,'핵심 용어'),h('div',{style:'height:8px'}),h('div',{class:'terms'},t.terms.map(x=>[h('span',null,x[0]),h('span',{class:'en'},x[1])]))):null,
+    h('div',{class:'tip'},h('b',null,'시험·실무 포인트'),h('p',null,t.exam)),
+    h('div',{class:'list'},
+      h('button',{class:'btn primary block',type:'button',on:{click:()=>{S.read[t.id]=1;touch();save();startQuiz('topic',t.id,10,'practice')}}},nq?'읽음 표시하고 이 주제 퀴즈 ('+nq+'문항)':'읽음 표시'),
+      h('button',{class:'btn block',type:'button',on:{click:()=>{S.read[t.id]=S.read[t.id]?0:1;if(!S.read[t.id])delete S.read[t.id];touch();save();render()}}},S.read[t.id]?'읽음 표시 해제':'읽음으로 표시만 하기'),
+      t.area==='intl'?h('button',{class:'btn block',type:'button',on:{click:()=>go('tr')}},'이 표준 원문 번역하러 가기'):null))}
+function glossary(){
+  const list=h('div',{class:'list'}),q=h('input',{type:'search',id:'gq',placeholder:'용어 검색 (한글·영문)'});
+  const draw=()=>{const s=q.value.trim().toLowerCase();list.replaceChildren();
+    TERMS.filter(t=>!s||t[0].toLowerCase().includes(s)||t[1].toLowerCase().includes(s)||t[2].includes(s)).forEach(t=>
+      list.append(card(h('div',{class:'row between'},h('b',null,t[0]),h('span',{class:'mono msg'},t[1])),h('p',{class:'sub',style:'margin-top:4px'},t[2]))))};
+  q.addEventListener('input',draw);draw();
+  return h('div',{class:'stack'},q,h('button',{class:'btn block',type:'button',on:{click:()=>go('review',{rsub:'cards'})}},'용어 카드로 복습하기'),list)}
+
+/* ───────── 퀴즈 ───────── */
+function pool(kind,val){const all=allQ();
+  if(kind==='area'){if(val==='all')return all;const ids=TOPICS.filter(t=>t.area===val).map(t=>t.id);return all.filter(q=>ids.includes(q.topic))}
+  if(kind==='topic')return all.filter(q=>q.topic===val);
+  if(kind==='wrong')return all.filter(q=>S.wrong[q.id]);
+  if(kind==='bm')return all.filter(q=>S.bm[q.id]);
+  if(kind==='gen')return S.gen.slice();return[]}
+let Z=null;
+function startQuiz(kind,val,n,mode){
+  const list=shuffle(pool(kind,val)).slice(0,n||999);
+  clearInterval(timer);timer=null;nav.tab='quiz';
+  if(!list.length){Z=null;nav.qsub='menu';nav.qmsg='해당 범위에 문제가 없어요.';render();return}
+  Z={mode,i:0,picks:[],shown:false,end:mode==='exam'?Date.now()+list.length*60000:0,
+    items:list.map(q=>({q,order:q.type==='ox'?[0,1]:shuffle(q.c.map((_,i)=>i))}))};
+  nav.qsub='play';nav.qmsg='';render();window.scrollTo(0,0)}
+function record(q,ok){const p=S.stats[q.id]||{ok:0,no:0};S.stats[q.id]={ok:p.ok+(ok?1:0),no:p.no+(ok?0:1)};
+  if(ok)delete S.wrong[q.id];else S.wrong[q.id]=1;touch();save()}
+function viewQuiz(){
+  if(nav.qsub==='play'&&Z)return viewPlay();
+  if(nav.qsub==='result'&&Z)return viewResult();
+  const seg=h('div',{class:'seg',role:'group'},[['menu','문제 풀기'],['add','내 문제 추가']].map(([k,l])=>
+    h('button',{type:'button','aria-pressed':nav.qsub===k?'true':'false',on:{click:()=>{nav.qsub=k;render()}}},l)));
+  return h('div',{class:'stack'},seg,nav.qsub==='add'?viewAdd():viewQuizMenu())}
+function viewQuizMenu(){
+  const opts=[['area:all','전체 ('+pool('area','all').length+')'],['area:kr','국내 ('+pool('area','kr').length+')'],['area:intl','해외 ('+pool('area','intl').length+')'],['area:theory','이론 ('+pool('area','theory').length+')'],['gen:','내 문제 ('+S.gen.length+')'],['wrong:','오답노트 ('+pool('wrong').length+')'],['bm:','즐겨찾기 ('+pool('bm').length+')']];
+  const sel=h('select',{id:'q-scope'},opts.map(o=>h('option',{value:o[0]},o[1])));
+  const cnt=h('select',{id:'q-count'},[5,10,20,50].map(n=>h('option',{value:n,selected:n===10},n+'문항')));
+  const mode=h('select',{id:'q-mode'},h('option',{value:'practice'},'연습 (문항마다 해설)'),h('option',{value:'exam'},'모의고사 (문항당 1분, 마지막에 채점)'));
+  return h('div',{class:'stack'},
+    h('p',{class:'sub'},'기출문제가 공개되어 있지 않아, 표준 요약을 바탕으로 직접 만든 문제와 AI가 만든 문제로 연습합니다.'),
+    card(h('div',{class:'stack'},
+      h('div',{class:'field'},h('label',{for:'q-scope'},'범위'),sel),
+      h('div',{class:'field'},h('label',{for:'q-count'},'문항 수'),cnt),
+      h('div',{class:'field'},h('label',{for:'q-mode'},'방식'),mode),
+      h('button',{class:'btn primary block',type:'button',on:{click:()=>{const [k,v]=sel.value.split(':');startQuiz(k,v,+cnt.value,mode.value)}}},'시작'))),
+    nav.qmsg?h('p',{class:'msg err'},nav.qmsg):null,
+    h('p',{class:'msg'},'정답률 기록: 풀이 '+totals().n+'회 · 오답노트 '+pool('wrong').length+'문항'))}
+function viewPlay(){
+  const it=Z.items[Z.i],q=it.q,pick=Z.picks[Z.i];const answered=pick!==undefined;
+  const exam=Z.mode==='exam';
+  const timerEl=h('span',{class:'mono msg'});
+  if(exam){const tick=()=>{const s=Math.max(0,Math.round((Z.end-Date.now())/1000));timerEl.textContent=pad(Math.floor(s/60))+':'+pad(s%60);if(s<=0){clearInterval(timer);finish()}};tick();clearInterval(timer);timer=setInterval(tick,1000)}
+  const lock=answered;
+  const choices=it.order.map((oi,pos)=>{
+    const cls=['choice'];
+    if(answered){if(!exam){if(oi===q.a)cls.push('right');else if(oi===pick)cls.push('wrong')}else if(oi===pick)cls.push('sel')}
+    return h('button',{class:cls.join(' '),type:'button',disabled:lock,on:{click:()=>choose(oi)}},h('span',{class:'k'},q.type==='ox'?'':String.fromCharCode(65+pos)),h('span',null,q.c[oi]))});
+  const last=Z.i===Z.items.length-1;
+  return h('div',{class:'stack'},
+    h('div',{class:'row between'},h('span',{class:'mono msg'},(Z.i+1)+' / '+Z.items.length),timerEl,
+      h('button',{class:'chip',type:'button','aria-pressed':S.bm[q.id]?'true':'false',on:{click:()=>{if(S.bm[q.id])delete S.bm[q.id];else S.bm[q.id]=1;save();render()}}},S.bm[q.id]?'★ 즐겨찾기':'☆ 즐겨찾기')),
+    h('div',{class:'bar'},h('i',{style:'width:'+Math.round(100*(Z.i+(answered?1:0))/Z.items.length)+'%'})),
+    h('p',{class:'q'},q.q),
+    q.src==='mine'?h('span',{class:'tag acc',style:'align-self:flex-start'},'내가 만든 문제'):null,
+    h('div',{class:'list'},choices),
+    answered&&!exam?card(h('b',{style:'color:var(--'+(pick===q.a?'good':'stamp')+')'},pick===q.a?'정답':'오답 · 정답: '+q.c[q.a]),h('p',{style:'margin-top:6px'},q.e)):null,
+    answered?h('button',{class:'btn primary block',type:'button',on:{click:()=>{if(last)finish();else{Z.i++;render();window.scrollTo(0,0)}}}},last?'결과 보기':'다음'):null)}
+function choose(oi){if(Z.picks[Z.i]!==undefined)return;const q=Z.items[Z.i].q;Z.picks[Z.i]=oi;record(q,oi===q.a);render()}
+function finish(){clearInterval(timer);timer=null;if(!Z)return;
+  let ok=0;Z.items.forEach((it,i)=>{if(Z.picks[i]===undefined){record(it.q,false)}else if(Z.picks[i]===it.q.a)ok++});
+  Z.score=ok;S.hist.push({d:today(),s:ok,n:Z.items.length,m:Z.mode});S.hist=S.hist.slice(-30);save();nav.qsub='result';render();window.scrollTo(0,0)}
+function viewResult(){
+  const n=Z.items.length,pct=Math.round(100*Z.score/n),pass=pct>=60;
+  const wrongs=Z.items.map((it,i)=>({it,i})).filter(x=>Z.picks[x.i]!==x.it.q.a);
+  return h('div',{class:'stack'},
+    card(h('div',{class:'row between'},h('div',{class:'stat'},h('b',null,Z.score+' / '+n),h('span',null,'정답률 '+pct+'%')),
+      h('span',{class:'stamp',style:pass?'color:var(--good);border-color:var(--good)':''},pass?'60% 이상':'재검토'))),
+    wrongs.length?h('h3',null,'틀린 문제 '+wrongs.length+'개'):h('p',null,'모두 맞혔어요.'),
+    h('div',{class:'list'},wrongs.map(({it,i})=>card(h('p',{style:'font-weight:600'},it.q.q),
+      h('p',{class:'msg',style:'margin-top:6px'},'내 답: '+(Z.picks[i]===undefined?'미응답':it.q.c[Z.picks[i]])),
+      h('p',{style:'color:var(--good);font-weight:600'},'정답: '+it.q.c[it.q.a]),h('p',{class:'sub',style:'margin-top:4px'},it.q.e)))),
+    h('div',{class:'list'},
+      h('button',{class:'btn primary block',type:'button',on:{click:()=>{Z=null;nav.qsub='menu';render()}}},'메뉴로'),
+      wrongs.length?h('button',{class:'btn block',type:'button',on:{click:()=>startQuiz('wrong','',20,'practice')}},'오답만 다시 풀기'):null))}
+
+/* ───────── 번역: 브라우저 내장 → 무료 API, 용어 보정, 조동사 표시 ───────── */
+const FIXES=[
+  [/authentic/i,[['진정성','진본성']]],
+  [/record/i,[['레코드','기록']]],
+  [/apprais/i,[['감정','평가']]],
+  [/retention/i,[['보유 기간','보존기간'],['유지 기간','보존기간'],['보유기간','보존기간']]],
+  [/captur/i,[['캡처','획득'],['포획','획득'],['포착','획득']]],
+  [/metadata/i,[['메타 데이터','메타데이터']]],
+  [/integrity/i,[['진실성','무결성'],['온전성','무결성']]]
+];
+function josaPick(b,j){const c=b.charCodeAt(b.length-1);const bt=c>=0xAC00&&c<=0xD7A3&&((c-0xAC00)%28)!==0;const rieul=bt&&((c-0xAC00)%28)===8;
+  if(j==='은'||j==='는')return bt?'은':'는';if(j==='이'||j==='가')return bt?'이':'가';
+  if(j==='을'||j==='를')return bt?'을':'를';if(j==='과'||j==='와')return bt?'과':'와';
+  return (bt&&!rieul)?'으로':'로'}
+function swapTerm(ko,a,b){let n=0;
+  const re=new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(으로|은|는|이|가|을|를|과|와|로)?','g');
+  const out=ko.replace(re,(m,j)=>{n++;return j?b+josaPick(b,j):b});
+  return{ko:out,n}}
+function fixTerms(src,ko){let n=0;
+  FIXES.forEach(([re,list])=>{if(re.test(src))list.forEach(([a,b])=>{const r=swapTerm(ko,a,b);ko=r.ko;n+=r.n})});
+  return{ko,n}}
+function modalTags(s){const l=s.toLowerCase(),t=[];
+  if(/\bshall not\b/.test(l))t.push('금지');else if(/\bshall\b/.test(l))t.push('요구');
+  if(/\bshould not\b/.test(l))t.push('권고(비권장)');else if(/\bshould\b/.test(l))t.push('권고');
+  if(/\bmay\b/.test(l))t.push('허용');
+  if(/\bcan\b/.test(l))t.push('가능');
+  return t}
+function termsIn(s){const seen={},out=[];
+  TERMS.forEach(t=>{const en=t[1].replace(/ \(.*\)$/,'');if(seen[t[0]])return;
+    const re=new RegExp('\\b'+en.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'s?\\b','i');
+    if(re.test(s)){seen[t[0]]=1;out.push(t[0]+' = '+en)}});
+  return out.slice(0,6)}
+function splitSentences(text){const out=[];
+  text.replace(/\r/g,'').split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach(p=>{
+    p.split(/(?<=[.!?])\s+(?=[A-Z0-9("'])/).forEach(s=>{
+      while(s.length>450){let i=s.lastIndexOf(' ',450);if(i<100)i=450;out.push(s.slice(0,i));s=s.slice(i).trim()}
+      if(s)out.push(s)})});
+  return out}
+function decodeHtml(s){const t=document.createElement('textarea');t.innerHTML=s;return t.value}
+async function chromeTranslate(sents,lang,signal,onProg){
+  if(!('Translator' in self))throw{code:'noengine'};
+  const av=await self.Translator.availability({sourceLanguage:lang,targetLanguage:'ko'});
+  if(av==='unavailable')throw{code:'noengine'};
+  const tr=await self.Translator.create({sourceLanguage:lang,targetLanguage:'ko'});
+  const res=[];
+  for(const s of sents){if(signal.aborted)throw{code:'cancelled'};res.push(await tr.translate(s));onProg(res.length)}
+  return res}
+async function myMemory(sents,lang,signal,onProg,email){
+  const res=[];
+  for(const s of sents){if(signal.aborted)throw{code:'cancelled'};
+    const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(s)+'&langpair='+lang+'|ko'+(email?'&de='+encodeURIComponent(email):'');
+    const r=await fetch(url,{signal});
+    if(!r.ok)throw{code:'http'+r.status};
+    const j=await r.json();
+    const t=j&&j.responseData&&j.responseData.translatedText;
+    if(!t||/MYMEMORY WARNING/i.test(t)||+j.responseStatus===429)throw{code:'quota'};
+    if(j.responseStatus&&+j.responseStatus!==200)throw{code:'mm'};
+    res.push(t);onProg(res.length)}
+  return res}
+function trErr(e){const c=e&&e.code;
+  if(c==='cancelled'||(e&&e.name==='AbortError'))return '중지했어요.';
+  if(c==='noengine')return '이 브라우저에는 내장 번역이 없어요. 번역 엔진을 "무료 번역 서비스"로 바꿔 보세요.';
+  if(c==='quota')return '오늘 무료 번역 한도를 다 썼어요. 아래 이메일 칸에 주소를 넣으면 한도가 늘어나고, 내일 다시 시도해도 돼요.';
+  if(c==='http429')return '요청이 너무 많아요. 잠시 뒤 다시 눌러 주세요.';
+  if(e&&e.name==='TypeError')return '인터넷에 연결되어 있지 않거나 번역 서비스에 닿지 못했어요.';
+  return '번역하지 못했어요. 문장을 줄여서 다시 시도해 주세요.'}
+let ctl=null;
+let trState={src:'',lang:'en',engine:'auto',view:'pair',rows:null,info:''};
+function viewTr(){
+  const src=h('textarea',{id:'tr-src',maxlength:'6000',placeholder:'구입하거나 열람 권한이 있는 표준의 일부 문단을 붙여 넣으세요.'});
+  src.value=trState.src;
+  const count=h('span',{class:'mono msg'},src.value.length+' / 6000');
+  src.addEventListener('input',()=>{trState.src=src.value;count.textContent=src.value.length+' / 6000'});
+  const sel=(id,key,opts)=>{const s=h('select',{id},opts.map(([v,l])=>h('option',{value:v,selected:trState[key]===v},l)));s.addEventListener('change',()=>{trState[key]=s.value;if(key==='view')render()});return s};
+  const lang=sel('tr-lang','lang',[['en','영어'],['fr','프랑스어'],['ja','일본어']]);
+  const eng=sel('tr-engine','engine',[['auto','자동 (내장 번역 → 무료 서비스)'],['chrome','브라우저 내장 번역만'],['mymemory','무료 번역 서비스만']]);
+  const view=sel('tr-view','view',[['pair','원문·번역 나란히'],['ko','번역만']]);
+  const mail=h('input',{type:'search',id:'tr-mail',placeholder:'선택: 이메일 (무료 한도 확대용)',value:S.set.email||''});
+  mail.addEventListener('change',()=>{S.set.email=mail.value.trim();save()});
+  const msg=h('p',{class:'msg'});
+  const run=h('button',{class:'btn primary block',type:'button'},'번역하기');
+  const stop=h('button',{class:'btn block',type:'button',hidden:true},'중지');
+  stop.addEventListener('click',()=>{if(ctl)ctl.abort()});
+  run.addEventListener('click',async()=>{
+    const text=src.value.trim();
+    if(!text){msg.className='msg err';msg.textContent='번역할 원문을 먼저 붙여 넣어 주세요.';return}
+    const L=lang.value,sents=splitSentences(text);let res=null,used='';
+    ctl=new AbortController();run.disabled=true;stop.hidden=false;msg.className='msg';
+    const prog=n=>{msg.textContent='번역하는 중… '+n+' / '+sents.length};prog(0);
+    try{
+      if(eng.value!=='mymemory'){
+        try{res=await chromeTranslate(sents,L,ctl.signal,prog);used='브라우저 내장 번역'}
+        catch(e){if((e&&e.code==='cancelled')||eng.value==='chrome')throw e;res=null}}
+      if(!res){res=await myMemory(sents,L,ctl.signal,prog,S.set.email);used='무료 번역 서비스(MyMemory)'}
+      let fixes=0;
+      const rows=sents.map((s,i)=>{const raw=decodeHtml(res[i]);const f=L==='en'?fixTerms(s,raw):{ko:raw,n:0};fixes+=f.n;
+        return{en:s,ko:f.ko,tags:L==='en'?modalTags(s):[],terms:L==='en'?termsIn(s):[]}});
+      trState.rows=rows;trState.info=used+(fixes?' · 용어 보정 '+fixes+'건':'');
+      S.tr.unshift({t:Date.now(),src:text,rows,info:trState.info});S.tr=S.tr.slice(0,8);touch();save();render();
+    }catch(e){msg.className='msg err';msg.textContent=trErr(e);run.disabled=false;stop.hidden=true;ctl=null}});
+  const pairs=h('div',{class:'stack'});
+  if(trState.rows)trState.rows.forEach(r=>{
+    if(trState.view==='ko'){pairs.append(h('p',{class:'ko'},r.ko));return}
+    pairs.append(h('div',{class:'pair'},h('p',{class:'en-src'},r.en),h('p',{class:'ko'},r.ko),
+      r.tags.length?h('div',{class:'row',style:'gap:6px'},r.tags.map(t=>h('span',{class:'tag acc'},t))):null,
+      r.terms.length?h('p',{class:'msg'},'용어: '+r.terms.join(' · ')):null))});
+  const cp=h('button',{class:'btn sm',type:'button'},'번역 복사');
+  cp.addEventListener('click',async()=>{if(!trState.rows)return;const t=trState.rows.map(r=>r.ko).join('\n');
+    try{await navigator.clipboard.writeText(t);msg.className='msg';msg.textContent='복사했어요.'}
+    catch(e){msg.className='msg err';msg.textContent='복사하지 못했어요. 번역문을 길게 눌러 선택하세요.'}});
+  const hist=S.tr.map(x=>h('button',{type:'button',on:{click:()=>{trState.src=x.src;trState.rows=x.rows;trState.info=x.info||'';render()}}},
+    new Date(x.t).toLocaleDateString('ko-KR')+' · '+x.src.replace(/\s+/g,' ').slice(0,48)));
+  return h('div',{class:'stack'},
+    h('h2',null,'원문 번역'),
+    h('div',{class:'notice'},h('b',null,'알아 두세요'),
+      h('p',null,'기계번역은 shall·should 같은 조동사와 부정 표현에서 틀릴 수 있어요. 중요한 조항은 원문과 꼭 대조하세요.'),
+      h('p',null,'"무료 번역 서비스"를 쓰면 입력한 문장이 외부 서비스로 전송됩니다. 브라우저 내장 번역은 기기 안에서 처리돼요. 이 앱에는 ISO 원문이 들어 있지 않으니, 열람 권한이 있는 표준의 일부 문단만 개인 학습용으로 넣으세요.')),
+    card(h('div',{class:'stack'},
+      h('div',{class:'field'},h('label',{for:'tr-src'},'원문'),src,h('div',{class:'row between'},count,h('button',{class:'btn sm ghost',type:'button',on:{click:()=>{trState.src='';trState.rows=null;render()}}},'비우기'))),
+      h('div',{class:'grid2'},h('div',{class:'field'},h('label',{for:'tr-lang'},'원문 언어'),lang),h('div',{class:'field'},h('label',{for:'tr-view'},'보기'),view)),
+      h('div',{class:'field'},h('label',{for:'tr-engine'},'번역 엔진'),eng),
+      h('div',{class:'field'},h('label',{for:'tr-mail'},'무료 서비스 한도 확대'),mail),
+      run,stop,msg)),
+    trState.rows?card(h('div',{class:'row between'},h('h3',null,'번역 결과'),cp),
+      h('p',{class:'msg',style:'margin:4px 0 10px'},trState.info),pairs):null,
+    S.tr.length?h('div',{class:'stack',style:'gap:8px'},h('h3',null,'최근 번역'),h('div',{class:'hist'},hist)):null)}
+
+/* ───────── 내 문제 추가 ───────── */
+function viewAdd(){
+  const topic=h('select',{id:'m-topic'},TOPICS.map(t=>h('option',{value:t.id},t.code+' · '+t.title)));
+  const q=h('textarea',{id:'m-q',style:'min-height:80px',placeholder:'문제'});
+  const cs=[0,1,2,3].map(i=>h('input',{type:'search',id:'m-c'+i,placeholder:'보기 '+String.fromCharCode(65+i)}));
+  const ans=h('select',{id:'m-a'},[0,1,2,3].map(i=>h('option',{value:i},'정답 '+String.fromCharCode(65+i))));
+  const ex=h('textarea',{id:'m-e',style:'min-height:70px',placeholder:'해설 (선택)'});
+  const msg=h('p',{class:'msg'},nav.addMsg||'');nav.addMsg='';
+  const save1=h('button',{class:'btn primary block',type:'button'},'문제 저장');
+  save1.addEventListener('click',()=>{
+    const c=cs.map(x=>x.value.trim());
+    if(!q.value.trim()||c.some(x=>!x)){msg.className='msg err';msg.textContent='문제와 보기 4개를 모두 입력해 주세요.';return}
+    S.gen.push({id:'m'+Date.now(),topic:topic.value,q:q.value.trim(),c,a:+ans.value,e:ex.value.trim()||'해설 없음',type:'mc',src:'mine'});
+    save();nav.addMsg='저장했어요. 문제 풀기에서 "내 문제"를 고르면 나옵니다.';render()});
+  const mine=S.gen.map(x=>h('div',{class:'card'},h('p',{style:'font-weight:600'},x.q),
+    h('div',{class:'row between',style:'margin-top:6px'},h('span',{class:'msg'},'정답: '+x.c[x.a]),
+      h('button',{class:'btn sm ghost',type:'button',on:{click:()=>{S.gen=S.gen.filter(y=>y.id!==x.id);delete S.wrong[x.id];delete S.bm[x.id];save();render()}}},'삭제'))));
+  return h('div',{class:'stack'},
+    h('p',{class:'sub'},'기출문제가 없으니 공부하면서 헷갈린 내용을 직접 문제로 만들어 두세요. 오답노트·복습과 함께 쓸 수 있어요.'),
+    card(h('div',{class:'stack'},h('div',{class:'field'},h('label',{for:'m-topic'},'주제'),topic),q,cs,
+      h('div',{class:'field'},h('label',{for:'m-a'},'정답'),ans),ex,save1,msg)),
+    mine.length?h('div',{class:'stack',style:'gap:8px'},h('h3',null,'내가 만든 문제 '+mine.length+'개'),mine):null)}
+
+/* ───────── 백업 ───────── */
+function exportData(){try{const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='rk-standards-backup-'+today()+'.json';document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000)}catch(e){}}
+function importData(file,msg){const r=new FileReader();
+  r.onload=()=>{try{const o=JSON.parse(r.result);if(!o||typeof o!=='object')throw 0;S=Object.assign(S,o);save();render()}
+    catch(e){msg.className='msg err';msg.textContent='백업 파일을 읽지 못했어요.'}};
+  r.readAsText(file)}
+
+/* ───────── 복습 (간격 반복 카드, 오답노트, 즐겨찾기) ───────── */
+const GAP=[1,3,7,14,30];
+let C=null;
+function viewReview(){
+  if(nav.rsub==='cards')return viewCards();
+  const di=dueInfo(),tot=totals();
+  const wrong=pool('wrong'),bm=pool('bm');
+  const byArea=Object.keys(AREAS).map(a=>{const ids=TOPICS.filter(t=>t.area===a).map(t=>t.id);let ok=0,no=0;allQ().filter(q=>ids.includes(q.topic)).forEach(q=>{const s=S.stats[q.id];if(s){ok+=s.ok;no+=s.no}});return{a,ok,no}});
+  return h('div',{class:'stack'},
+    card(h('h3',null,'용어 카드 (간격 반복)'),h('p',{class:'sub',style:'margin:4px 0 10px'},'외운 카드는 1·3·7·14·30일 간격으로 다시 나타납니다.'),
+      h('button',{class:'btn primary block',type:'button',on:{click:()=>startCards()}},'복습 '+di.due+'개 · 새 카드 '+di.fresh+'개 시작')),
+    card(h('div',{class:'row between'},h('h3',null,'오답노트'),h('span',{class:'tag'},wrong.length+'문항')),
+      wrong.length?h('div',{class:'stack',style:'margin-top:10px'},wrong.slice(0,4).map(q=>h('p',{class:'sub'},'· '+q.q)),
+        h('button',{class:'btn block',type:'button',on:{click:()=>startQuiz('wrong','',20,'practice')}},'오답 다시 풀기')):h('p',{class:'sub',style:'margin-top:6px'},'틀린 문제가 여기에 모입니다.')),
+    card(h('div',{class:'row between'},h('h3',null,'즐겨찾기'),h('span',{class:'tag'},bm.length+'문항')),
+      bm.length?h('button',{class:'btn block',type:'button',style:'margin-top:10px',on:{click:()=>startQuiz('bm','',20,'practice')}},'즐겨찾기 문제 풀기'):h('p',{class:'sub',style:'margin-top:6px'},'퀴즈 중 별표를 누르면 저장됩니다.')),
+    card(h('h3',null,'영역별 정답률'),h('div',{style:'height:10px'}),
+      h('div',{class:'list'},byArea.map(x=>{const n=x.ok+x.no,p=n?Math.round(100*x.ok/n):0;
+        return h('div',{class:'stack',style:'gap:6px'},h('div',{class:'row between'},h('span',null,AREAS[x.a]),h('span',{class:'mono msg'},n?p+'% ('+n+'회)':'기록 없음')),h('div',{class:'bar good'},h('i',{style:'width:'+p+'%'})))}))),
+    S.hist.length?card(h('h3',null,'최근 퀴즈'),h('div',{class:'hist',style:'margin-top:8px'},S.hist.slice(-5).reverse().map(x=>h('div',{class:'msg mono'},x.d+' · '+(x.m==='exam'?'모의':'연습')+' · '+x.s+'/'+x.n)))):null)}
+function startCards(){const t=today(),dueIds=[],fresh=[];
+  TERMS.forEach((_,i)=>{const c=S.cards[i];if(c&&c.due<=t)dueIds.push(i)});
+  const used=S.newToday.d===t?S.newToday.n:0;let room=Math.max(0,10-used);
+  TERMS.forEach((_,i)=>{if(!S.cards[i]&&room>0){fresh.push(i);room--}});
+  const q=shuffle(dueIds).concat(fresh);
+  if(!q.length){nav.rsub='cards';C={q:[],i:0,flip:false,dir:'ko',done:0};render();return}
+  C={q,i:0,flip:false,dir:(C&&C.dir)||'ko',done:0};nav.rsub='cards';render()}
+function viewCards(){
+  if(!C)C={q:[],i:0,flip:false,dir:'ko',done:0};
+  const back=h('button',{class:'back',type:'button',on:{click:()=>{C=null;nav.rsub='menu';render()}}},'← 복습 메뉴');
+  if(C.i>=C.q.length)return h('div',{class:'stack'},back,card(h('h3',null,C.done?'오늘 카드 복습을 마쳤어요':'지금 복습할 카드가 없어요'),h('p',{class:'sub',style:'margin-top:6px'},C.done?C.done+'장을 복습했어요.':'새 카드는 하루 10장까지 보여 줍니다. 내일 다시 오세요.')));
+  const id=C.q[C.i],t=TERMS[id];
+  const front=C.dir==='ko'?h('div',{class:'big'},t[0]):h('div',{class:'en'},t[1]);
+  const ans=C.dir==='ko'?h('div',{class:'en'},t[1]):h('div',{class:'big'},t[0]);
+  const fc=h('div',{class:'card flash',role:'button',tabindex:'0',on:{click:()=>{C.flip=true;render()},keydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();C.flip=true;render()}}}},
+    front,C.flip?[ans,h('p',{class:'sub'},t[2])]:h('p',{class:'msg'},'눌러서 답 보기'));
+  const dir=h('div',{class:'seg',role:'group'},[['ko','한글 → 영문'],['en','영문 → 한글']].map(([k,l])=>h('button',{type:'button','aria-pressed':C.dir===k?'true':'false',on:{click:()=>{C.dir=k;C.flip=false;render()}}},l)));
+  return h('div',{class:'stack'},back,dir,h('div',{class:'row between'},h('span',{class:'mono msg'},(C.i+1)+' / '+C.q.length)),fc,
+    C.flip?h('div',{class:'grid2'},h('button',{class:'btn',type:'button',on:{click:()=>grade(false)}},'헷갈려요'),h('button',{class:'btn primary',type:'button',on:{click:()=>grade(true)}},'알아요')):null)}
+function grade(ok){const id=C.q[C.i],t=today();const c=S.cards[id]||{box:0,due:t};
+  if(!S.cards[id]){S.newToday=S.newToday.d===t?S.newToday:{d:t,n:0};S.newToday.n++}
+  if(ok){c.box=Math.min(5,c.box+1);c.due=addDays(t,GAP[c.box-1])}else{c.box=1;c.due=addDays(t,1);C.q.push(id)}
+  S.cards[id]=c;C.i++;C.flip=false;if(ok)C.done++;touch();save();render()}
+
+load();render();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(()=>{})})}
+})();
+</script>
+</body></html>
