@@ -1,5 +1,5 @@
 // 앱을 수정해서 다시 올릴 때는 아래 버전 문자열을 바꿔야 폰에 새 파일이 반영됩니다.
-const V = 'rk-v2';
+const V = 'rk-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon.svg'];
 
 self.addEventListener('install', e => {
